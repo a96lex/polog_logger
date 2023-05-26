@@ -1,0 +1,1 @@
+from polog_logger.polog_setup import setup_logging
