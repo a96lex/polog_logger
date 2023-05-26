@@ -1,6 +1,7 @@
 import json
 import logging
 
+from typing import Callable
 from pydantic import BaseModel, validate_model, ValidationError
 from polog import config, file_writer
 from polog.core.log_item import LogItem
@@ -27,7 +28,7 @@ def customLogFormat(data: LogItem):
     return f"{process} - {level} - {values}\n"
 
 
-def performanceLogFilter(LogModel: BaseModel) -> bool:
+def performanceLogFilter(LogModel: BaseModel) -> Callable[[LogItem], bool]:
     """Checks wether a log message conforms to the PerformanceMetrics class
 
     Arguments:
@@ -37,11 +38,10 @@ def performanceLogFilter(LogModel: BaseModel) -> bool:
         a boolean value
     """
 
-    def inner_filter(record: LogItem):
+    def inner_filter(record: LogItem) -> bool:
         try:
             raw_log = json.loads(dict(record).get("message"))
             validate_model(LogModel, raw_log)
-            print("true")
             return True
         except (ValueError, ValidationError, Exception):
             return False
@@ -50,7 +50,11 @@ def performanceLogFilter(LogModel: BaseModel) -> bool:
 
 
 def setup_logging(
-    logfile: str = None, CustomLogModel: BaseModel = None, pool_size: int = 0
+    logfile: str = None,
+    pool_size: int = 0,
+    custom_log_format: Callable[[LogItem], str] = customLogFormat,
+    custom_log_model: BaseModel = None,
+    custom_log_filter: Callable[[LogItem], bool] = None,
 ) -> None:
     """Sets up logging using the polog module on top of stdlib logging.
 
@@ -88,20 +92,28 @@ def setup_logging(
     ```
 
     Keyword Arguments:
+        logfile -- Location of desired file handler (default: {None})
         pool_size -- Size of thread pool. 0 means sync logging (default: {0})
+        custom_log_format -- Custom format for file logs (default: {customLogFormat})
+        custom_log_model -- BaseModel to filter logs by (default: {None})
+        custom_log_filter -- If passed, will use this filter and ignore custom_log_model (default: {None})
     """
     # Set basic config for logging module
     logging.basicConfig(level=logging.INFO)
 
     # stdout handler. Can log to a file instead if we modify the file writer
-    config.add_handlers(file_writer(formatter=customLogFormat))
+    config.add_handlers(file_writer(formatter=custom_log_format))
+
+    # If no explicit filter is passed, we filter logs by `custom_log_model`
+    if not custom_log_filter:
+        custom_log_filter = performanceLogFilter(LogModel=custom_log_model)
 
     # file handler. We add here the filter to only save performance metrics
     config.add_handlers(
         file_writer(
             logfile,
-            filter=performanceLogFilter(LogModel=CustomLogModel),
-            formatter=customLogFormat,
+            filter=custom_log_filter,
+            formatter=custom_log_format,
         )
     )
 
@@ -116,7 +128,7 @@ if __name__ == "__main__":
         field1: str
         field2: int
 
-    setup_logging(logfile=TEST_LOG_FILE, CustomLogModel=TestMetric, pool_size=1)
+    setup_logging(logfile=TEST_LOG_FILE, pool_size=1, custom_log_model=TestMetric)
 
     # Will only appear on console stream
     logging.info("Normal log. Will only appear in console")
@@ -130,4 +142,3 @@ if __name__ == "__main__":
             }
         )
     )
-
