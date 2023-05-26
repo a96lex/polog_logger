@@ -13,6 +13,8 @@ poetry add git+ssh://git@gitlab.com:unith-ai/polog_logger.git
 ## Usage
 
 ```py
+import logging
+
 from polog_logger import setup_logging
 
 TEST_LOG_FILE = "testing.log"
