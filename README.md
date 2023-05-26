@@ -1,4 +1,4 @@
-### Polog logger
+# Polog logger
 
 This is a helper script for adding logging to our repos. 
 
