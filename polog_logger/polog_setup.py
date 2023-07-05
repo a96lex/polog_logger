@@ -92,7 +92,7 @@ def setup_logging(
     ```
 
     Keyword Arguments:
-        logfile -- Location of desired file handler (default: {None})
+        logfile -- If passed, location of desired file handler (default: {None}).
         pool_size -- Size of thread pool. 0 means sync logging (default: {0})
         custom_log_format -- Custom format for file logs (default: {customLogFormat})
         custom_log_model -- BaseModel to filter logs by (default: {None})
@@ -109,13 +109,14 @@ def setup_logging(
         custom_log_filter = performanceLogFilter(LogModel=custom_log_model)
 
     # file handler. We add here the filter to only save performance metrics
-    config.add_handlers(
-        file_writer(
-            logfile,
-            filter=custom_log_filter,
-            formatter=custom_log_format,
+    if logfile:
+        config.add_handlers(
+            file_writer(
+                logfile,
+                filter=custom_log_filter,
+                formatter=custom_log_format,
+            )
         )
-    )
 
     # initialize the thread pool if needed
     config.set(pool_size=pool_size)
